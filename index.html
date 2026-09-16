@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>IPO Arb Monitor</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg: #06060b;
@@ -13,7 +13,7 @@
     --surface-2: #15151f;
     --border: #1e1e2e;
     --text: #e2e2ea;
-    --text-dim: #7a7a8e;
+    --text-dim: #9a9ab0;       /* was #7a7a8e — now ≥4.5:1 on --bg */
     --green: #22c55e;
     --green-dim: rgba(34,197,94,0.12);
     --red: #ef4444;
@@ -36,7 +36,7 @@
   }
 
   .container {
-    max-width: 1120px;
+    max-width: 1200px;
     margin: 0 auto;
     padding: 24px 20px;
   }
@@ -72,12 +72,39 @@
   }
   .status-dot.live { background: var(--green); }
 
+  /* ---- Asset section header ---- */
+  .asset-header {
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+    margin-top: 28px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .asset-header:first-of-type { margin-top: 0; }
+  .asset-header .asset-tag {
+    font-size: 13px;
+    padding: 2px 8px;
+    border-radius: 3px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-weight: 700;
+  }
+
   /* ---- Venue cards ---- */
   .venues {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 12px;
-    margin-bottom: 20px;
+    margin-bottom: 14px;
+  }
+  .venues-2col {
+    grid-template-columns: repeat(2, 1fr);
+    max-width: 66%;
   }
   .venue-card {
     background: var(--surface);
@@ -86,10 +113,9 @@
     padding: 16px;
   }
   .venue-card .label {
-    font-size: 11px;
+    font-size: 13px;
     font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.02em;
     color: var(--text-dim);
     margin-bottom: 8px;
     display: flex;
@@ -97,9 +123,8 @@
     align-items: center;
   }
   .venue-card .label .stale-tag {
-    font-size: 10px;
+    font-size: 13px;
     color: var(--amber);
-    text-transform: none;
     letter-spacing: 0;
   }
   .venue-card .price-row {
@@ -117,44 +142,62 @@
   }
   .venue-card .mid {
     font-family: var(--mono);
-    font-size: 12px;
+    font-size: 13px;
     color: var(--text-dim);
     margin-top: 4px;
   }
   .venue-card.stale { opacity: 0.4; }
 
-  /* ---- Best spread banner ---- */
-  .spread-banner {
+  /* ---- Spread pair boxes ---- */
+  .spread-pairs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .spread-pairs-1col {
+    grid-template-columns: 1fr;
+    max-width: 33%;
+  }
+  .spread-box {
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 6px;
-    padding: 16px 20px;
-    margin-bottom: 20px;
+    padding: 14px 16px;
+  }
+  .spread-box .pair-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+    text-align: center;
+  }
+  .spread-direction {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    flex-wrap: wrap;
-    gap: 12px;
+    padding: 6px 0;
   }
-  .spread-banner .spread-value {
-    font-family: var(--mono);
-    font-size: 32px;
-    font-weight: 700;
+  .spread-direction + .spread-direction {
+    border-top: 1px solid var(--border);
   }
-  .spread-banner .spread-value.positive { color: var(--green); }
-  .spread-banner .spread-value.negative { color: var(--red); }
-  .spread-banner .spread-label {
+  .spread-direction .dir-label {
     font-size: 13px;
     color: var(--text-dim);
   }
-  .spread-banner .direction {
+  .spread-direction .dir-value {
     font-family: var(--mono);
-    font-size: 14px;
-    font-weight: 600;
-    padding: 6px 12px;
-    border-radius: 4px;
-    background: var(--surface-2);
-    border: 1px solid var(--border);
+    font-size: 16px;
+    font-weight: 700;
+  }
+  .spread-direction.best .dir-value {
+    color: var(--green);
+  }
+  .spread-direction.best .dir-label {
+    color: var(--text);
+  }
+  .spread-direction:not(.best) .dir-value {
+    color: var(--text-dim);
   }
 
   /* ---- KPI grid ---- */
@@ -171,7 +214,7 @@
     padding: 14px 16px;
   }
   .kpi .kpi-label {
-    font-size: 11px;
+    font-size: 13px;
     color: var(--text-dim);
     margin-bottom: 6px;
   }
@@ -181,7 +224,7 @@
     font-weight: 700;
   }
   .kpi .kpi-sub {
-    font-size: 11px;
+    font-size: 13px;
     color: var(--text-dim);
     margin-top: 2px;
   }
@@ -193,9 +236,10 @@
     border-radius: 6px;
     padding: 16px;
     margin-bottom: 20px;
+    overflow-x: auto;
   }
   .history-section h3 {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     margin-bottom: 12px;
     color: var(--text-dim);
@@ -204,7 +248,7 @@
     width: 100%;
     border-collapse: collapse;
     font-family: var(--mono);
-    font-size: 12px;
+    font-size: 13px;
   }
   .history-table th {
     text-align: left;
@@ -212,11 +256,13 @@
     color: var(--text-dim);
     padding: 6px 8px;
     border-bottom: 1px solid var(--border);
-    font-size: 11px;
+    font-size: 13px;
+    white-space: nowrap;
   }
   .history-table td {
     padding: 5px 8px;
     border-bottom: 1px solid var(--border);
+    white-space: nowrap;
   }
   .history-table tr:last-child td { border-bottom: none; }
   .history-table .alert-row { background: var(--green-dim); }
@@ -229,7 +275,7 @@
     padding: 20px;
   }
   .config-panel h3 {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     margin-bottom: 16px;
   }
@@ -240,7 +286,7 @@
   }
   .config-field label {
     display: block;
-    font-size: 12px;
+    font-size: 13px;
     color: var(--text-dim);
     margin-bottom: 6px;
   }
@@ -310,12 +356,30 @@
   }
   .save-msg.show { opacity: 1; }
 
+  /* ---- Error banner ---- */
+  .error-banner {
+    background: var(--red-dim);
+    border: 1px solid var(--red);
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    font-size: 13px;
+    color: var(--red);
+    display: none;
+  }
+  .error-banner.show { display: block; }
+
   /* ---- Responsive ---- */
+  @media (max-width: 900px) {
+    .spread-pairs { grid-template-columns: repeat(2, 1fr); }
+    .spread-pairs-1col { max-width: 50%; }
+    .venues-2col { max-width: 100%; }
+  }
   @media (max-width: 700px) {
-    .venues { grid-template-columns: 1fr; }
+    .venues, .spread-pairs { grid-template-columns: 1fr; }
+    .venues-2col, .spread-pairs-1col { max-width: 100%; }
     .kpis { grid-template-columns: repeat(2, 1fr); }
     .venue-card .price-row { font-size: 18px; }
-    .spread-banner .spread-value { font-size: 24px; }
   }
 </style>
 </head>
@@ -323,55 +387,123 @@
 
 <div class="container">
   <header>
-    <h1>IPO Arb <span>— Anthropic pre-IPO spread monitor</span></h1>
+    <h1>IPO Arb <span>— pre-IPO spread monitor</span></h1>
     <div class="status">
       <span class="status-dot" id="statusDot"></span>
       <span id="statusText">Connecting...</span>
     </div>
   </header>
 
-  <!-- Venue prices -->
+  <!-- Error banner for auth failures -->
+  <div class="error-banner" id="errorBanner"></div>
+
+  <!-- ======== ANTHROPIC ======== -->
+  <div class="asset-header">
+    <span class="asset-tag">ANTH</span> Anthropic
+  </div>
+
   <div class="venues">
-    <div class="venue-card" id="card-HL">
-      <div class="label">Hyperliquid <span class="stale-tag" id="stale-HL"></span></div>
-      <div class="price-row"><span id="hl-bid">—</span><span class="slash">/</span><span id="hl-ask">—</span></div>
-      <div class="mid">mid <span id="hl-mid">—</span></div>
+    <div class="venue-card" id="card-anth-HL">
+      <div class="label">Hyperliquid <span class="stale-tag" id="stale-anth-HL"></span></div>
+      <div class="price-row"><span id="anth-hl-bid">—</span><span class="slash">/</span><span id="anth-hl-ask">—</span></div>
+      <div class="mid">mid <span id="anth-hl-mid">—</span></div>
     </div>
-    <div class="venue-card" id="card-BN">
-      <div class="label">Binance <span class="stale-tag" id="stale-BN"></span></div>
-      <div class="price-row"><span id="bn-bid">—</span><span class="slash">/</span><span id="bn-ask">—</span></div>
-      <div class="mid">mid <span id="bn-mid">—</span></div>
+    <div class="venue-card" id="card-anth-BN">
+      <div class="label">Binance <span class="stale-tag" id="stale-anth-BN"></span></div>
+      <div class="price-row"><span id="anth-bn-bid">—</span><span class="slash">/</span><span id="anth-bn-ask">—</span></div>
+      <div class="mid">mid <span id="anth-bn-mid">—</span></div>
     </div>
-    <div class="venue-card" id="card-IG">
-      <div class="label">IG Markets <span class="stale-tag" id="stale-IG"></span></div>
-      <div class="price-row"><span id="ig-bid">—</span><span class="slash">/</span><span id="ig-ask">—</span></div>
-      <div class="mid">mid <span id="ig-mid">—</span></div>
+    <div class="venue-card" id="card-anth-IG">
+      <div class="label">IG Markets <span class="stale-tag" id="stale-anth-IG"></span></div>
+      <div class="price-row"><span id="anth-ig-bid">—</span><span class="slash">/</span><span id="anth-ig-ask">—</span></div>
+      <div class="mid">mid <span id="anth-ig-mid">—</span></div>
     </div>
   </div>
 
-  <!-- Best spread -->
-  <div class="spread-banner">
-    <div>
-      <div class="spread-label">Best spread</div>
-      <div class="spread-value" id="bestSpread">—</div>
+  <!-- Anthropic spread pairs -->
+  <div class="spread-pairs">
+    <div class="spread-box" id="pair-anth-ig-bn">
+      <div class="pair-label">IG ↔ Binance</div>
+      <div class="spread-direction" id="dir-anth-ig-bn">
+        <span class="dir-label">Buy IG → Sell BN</span>
+        <span class="dir-value">—</span>
+      </div>
+      <div class="spread-direction" id="dir-anth-bn-ig">
+        <span class="dir-label">Buy BN → Sell IG</span>
+        <span class="dir-value">—</span>
+      </div>
     </div>
-    <div class="direction" id="bestDirection">—</div>
+    <div class="spread-box" id="pair-anth-ig-hl">
+      <div class="pair-label">IG ↔ Hyperliquid</div>
+      <div class="spread-direction" id="dir-anth-ig-hl">
+        <span class="dir-label">Buy IG → Sell HL</span>
+        <span class="dir-value">—</span>
+      </div>
+      <div class="spread-direction" id="dir-anth-hl-ig">
+        <span class="dir-label">Buy HL → Sell IG</span>
+        <span class="dir-value">—</span>
+      </div>
+    </div>
+    <div class="spread-box" id="pair-anth-bn-hl">
+      <div class="pair-label">Binance ↔ Hyperliquid</div>
+      <div class="spread-direction" id="dir-anth-bn-hl">
+        <span class="dir-label">Buy BN → Sell HL</span>
+        <span class="dir-value">—</span>
+      </div>
+      <div class="spread-direction" id="dir-anth-hl-bn">
+        <span class="dir-label">Buy HL → Sell BN</span>
+        <span class="dir-value">—</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======== OPENAI ======== -->
+  <div class="asset-header">
+    <span class="asset-tag">OAI</span> OpenAI
+  </div>
+
+  <div class="venues venues-2col">
+    <div class="venue-card" id="card-oai-BN">
+      <div class="label">Binance <span class="stale-tag" id="stale-oai-BN"></span></div>
+      <div class="price-row"><span id="oai-bn-bid">—</span><span class="slash">/</span><span id="oai-bn-ask">—</span></div>
+      <div class="mid">mid <span id="oai-bn-mid">—</span></div>
+    </div>
+    <div class="venue-card" id="card-oai-IG">
+      <div class="label">IG Markets <span class="stale-tag" id="stale-oai-IG"></span></div>
+      <div class="price-row"><span id="oai-ig-bid">—</span><span class="slash">/</span><span id="oai-ig-ask">—</span></div>
+      <div class="mid">mid <span id="oai-ig-mid">—</span></div>
+    </div>
+  </div>
+
+  <!-- OpenAI spread pair -->
+  <div class="spread-pairs spread-pairs-1col">
+    <div class="spread-box" id="pair-oai-ig-bn">
+      <div class="pair-label">IG ↔ Binance</div>
+      <div class="spread-direction" id="dir-oai-ig-bn">
+        <span class="dir-label">Buy IG → Sell BN</span>
+        <span class="dir-value">—</span>
+      </div>
+      <div class="spread-direction" id="dir-oai-bn-ig">
+        <span class="dir-label">Buy BN → Sell IG</span>
+        <span class="dir-value">—</span>
+      </div>
+    </div>
   </div>
 
   <!-- KPIs -->
   <div class="kpis">
     <div class="kpi">
-      <div class="kpi-label">Max spread (24h)</div>
+      <div class="kpi-label">Best spread — 24h max</div>
       <div class="kpi-value" id="kpi-max-24h">—</div>
       <div class="kpi-sub" id="kpi-max-24h-pair"></div>
     </div>
     <div class="kpi">
-      <div class="kpi-label">Min spread (24h)</div>
+      <div class="kpi-label">Best spread — 24h min</div>
       <div class="kpi-value" id="kpi-min-24h">—</div>
       <div class="kpi-sub" id="kpi-min-24h-pair"></div>
     </div>
     <div class="kpi">
-      <div class="kpi-label">Max spread (7d)</div>
+      <div class="kpi-label">Best spread — 7d max</div>
       <div class="kpi-value" id="kpi-max-7d">—</div>
       <div class="kpi-sub" id="kpi-max-7d-pair"></div>
     </div>
@@ -386,7 +518,16 @@
     <h3>Recent ticks</h3>
     <table class="history-table">
       <thead>
-        <tr><th>Time</th><th>HL</th><th>BN</th><th>IG</th><th>Spread</th><th>Direction</th></tr>
+        <tr>
+          <th>Time</th>
+          <th>HL mid</th>
+          <th>BN mid</th>
+          <th>IG mid</th>
+          <th>IG↔BN</th>
+          <th>IG↔HL</th>
+          <th>BN↔HL</th>
+          <th>Best</th>
+        </tr>
       </thead>
       <tbody id="historyBody"></tbody>
     </table>
@@ -427,7 +568,7 @@
 // CONFIG — replace with your Supabase project details
 // ============================================================
 const SUPABASE_URL  = 'https://plnsptxogciwvhhltshq.supabase.co';
-const SUPABASE_ANON = 'sb_publishable_eY8FHjAbLTtytnFCoE0Cwg_zP6juJSl';
+const SUPABASE_ANON = 'sb_publishable_eY8FHjAbLTtytnFCoE0Cwg_zP6juJSl'; // ← FIX: paste your real anon JWT key (starts with eyJ...)
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
@@ -449,40 +590,119 @@ function fmtPct(n) {
   const v = Number(n);
   return (v >= 0 ? '+' : '') + v.toFixed(3) + '%';
 }
+function fmtPctShort(n) {
+  if (n == null) return '—';
+  const v = Number(n);
+  return (v >= 0 ? '+' : '') + v.toFixed(2) + '%';
+}
 function fmtTime(iso) {
   const d = new Date(iso);
   return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }
 function mid(bid, ask) {
   if (!bid || !ask) return null;
-  return ((Number(bid) + Number(ask)) / 2);
+  return (Number(bid) + Number(ask)) / 2;
 }
 
-// ---- Render tick ----
-function renderTick(t) {
-  $('hl-bid').textContent = fmt(t.hl_bid);
-  $('hl-ask').textContent = fmt(t.hl_ask);
-  $('hl-mid').textContent = fmt(mid(t.hl_bid, t.hl_ask));
-  $('bn-bid').textContent = fmt(t.bn_bid);
-  $('bn-ask').textContent = fmt(t.bn_ask);
-  $('bn-mid').textContent = fmt(mid(t.bn_bid, t.bn_ask));
-  $('ig-bid').textContent = fmt(t.ig_bid);
-  $('ig-ask').textContent = fmt(t.ig_ask);
-  $('ig-mid').textContent = fmt(mid(t.ig_bid, t.ig_ask));
+// ---- Spread calculations ----
+// Buy on venue A (pay ask), sell on venue B (receive bid)
+// Spread % = (B_bid - A_ask) / A_ask * 100
+function calcSpread(askA, bidB) {
+  if (!askA || !bidB) return null;
+  const a = Number(askA);
+  const b = Number(bidB);
+  if (a === 0) return null;
+  return ((b - a) / a) * 100;
+}
 
-  // Stale indicators
-  ['HL','BN','IG'].forEach(v => {
-    const prefix = v.toLowerCase();
+// Compute all six directional spreads for Anthropic from a tick
+function anthSpreads(t) {
+  return {
+    ig_bn:  calcSpread(t.ig_ask, t.bn_bid),    // buy IG, sell BN
+    bn_ig:  calcSpread(t.bn_ask, t.ig_bid),    // buy BN, sell IG
+    ig_hl:  calcSpread(t.ig_ask, t.hl_bid),    // buy IG, sell HL
+    hl_ig:  calcSpread(t.hl_ask, t.ig_bid),    // buy HL, sell IG
+    bn_hl:  calcSpread(t.bn_ask, t.hl_bid),    // buy BN, sell HL
+    hl_bn:  calcSpread(t.hl_ask, t.bn_bid),    // buy HL, sell BN
+  };
+}
+
+// Compute OpenAI spreads from a tick (IG ↔ BN only)
+function oaiSpreads(t) {
+  return {
+    ig_bn: calcSpread(t.oai_ig_ask, t.oai_bn_bid),  // buy IG, sell BN
+    bn_ig: calcSpread(t.oai_bn_ask, t.oai_ig_bid),  // buy BN, sell IG
+  };
+}
+
+// Best spread of a pair (returns the better direction's value)
+function bestOfPair(a, b) {
+  if (a == null && b == null) return null;
+  if (a == null) return b;
+  if (b == null) return a;
+  return Math.max(a, b);
+}
+
+// ---- Render spread direction boxes ----
+function renderSpreadDir(elIdA, elIdB, valA, valB) {
+  const elA = $(elIdA);
+  const elB = $(elIdB);
+  const valElA = elA.querySelector('.dir-value');
+  const valElB = elB.querySelector('.dir-value');
+
+  valElA.textContent = fmtPct(valA);
+  valElB.textContent = fmtPct(valB);
+
+  // Highlight the better direction
+  const aIsBest = (valA != null && (valB == null || valA >= valB));
+  elA.classList.toggle('best', aIsBest);
+  elB.classList.toggle('best', !aIsBest);
+}
+
+// ---- Render a full tick ----
+function renderTick(t) {
+  // Anthropic venue prices
+  $('anth-hl-bid').textContent = fmt(t.hl_bid);
+  $('anth-hl-ask').textContent = fmt(t.hl_ask);
+  $('anth-hl-mid').textContent = fmt(mid(t.hl_bid, t.hl_ask));
+  $('anth-bn-bid').textContent = fmt(t.bn_bid);
+  $('anth-bn-ask').textContent = fmt(t.bn_ask);
+  $('anth-bn-mid').textContent = fmt(mid(t.bn_bid, t.bn_ask));
+  $('anth-ig-bid').textContent = fmt(t.ig_bid);
+  $('anth-ig-ask').textContent = fmt(t.ig_ask);
+  $('anth-ig-mid').textContent = fmt(mid(t.ig_bid, t.ig_ask));
+
+  // Anthropic stale indicators
+  [['HL','hl'], ['BN','bn'], ['IG','ig']].forEach(([tag, prefix]) => {
     const hasBid = t[prefix + '_bid'] != null;
-    $('card-' + v).classList.toggle('stale', !hasBid);
-    $('stale-' + v).textContent = hasBid ? '' : 'no data';
+    $('card-anth-' + tag).classList.toggle('stale', !hasBid);
+    $('stale-anth-' + tag).textContent = hasBid ? '' : 'no data';
   });
 
-  // Best spread
-  const sp = Number(t.best_spread);
-  $('bestSpread').textContent = fmtPct(sp);
-  $('bestSpread').className = 'spread-value ' + (sp >= 0 ? 'positive' : 'negative');
-  $('bestDirection').textContent = t.best_pair || '—';
+  // Anthropic per-pair spreads
+  const as = anthSpreads(t);
+  renderSpreadDir('dir-anth-ig-bn', 'dir-anth-bn-ig', as.ig_bn, as.bn_ig);
+  renderSpreadDir('dir-anth-ig-hl', 'dir-anth-hl-ig', as.ig_hl, as.hl_ig);
+  renderSpreadDir('dir-anth-bn-hl', 'dir-anth-hl-bn', as.bn_hl, as.hl_bn);
+
+  // OpenAI venue prices
+  $('oai-bn-bid').textContent = fmt(t.oai_bn_bid);
+  $('oai-bn-ask').textContent = fmt(t.oai_bn_ask);
+  $('oai-bn-mid').textContent = fmt(mid(t.oai_bn_bid, t.oai_bn_ask));
+  $('oai-ig-bid').textContent = fmt(t.oai_ig_bid);
+  $('oai-ig-ask').textContent = fmt(t.oai_ig_ask);
+  $('oai-ig-mid').textContent = fmt(mid(t.oai_ig_bid, t.oai_ig_ask));
+
+  // OpenAI stale indicators
+  [['BN','oai_bn'], ['IG','oai_ig']].forEach(([tag, prefix]) => {
+    const hasBid = t[prefix + '_bid'] != null;
+    $('card-oai-' + tag).classList.toggle('stale', !hasBid);
+    $('stale-oai-' + tag).textContent = hasBid ? '' : 'no data';
+  });
+
+  // OpenAI per-pair spread
+  const os = oaiSpreads(t);
+  renderSpreadDir('dir-oai-ig-bn', 'dir-oai-bn-ig', os.ig_bn, os.bn_ig);
 
   // Status
   $('statusDot').classList.add('live');
@@ -494,15 +714,30 @@ function renderHistory() {
   const body = $('historyBody');
   body.innerHTML = '';
   recentTicks.forEach(t => {
+    const as = anthSpreads(t);
+    // Best per-pair spread for each pair
+    const igBn = bestOfPair(as.ig_bn, as.bn_ig);
+    const igHl = bestOfPair(as.ig_hl, as.hl_ig);
+    const bnHl = bestOfPair(as.bn_hl, as.hl_bn);
+
     const tr = document.createElement('tr');
     if (t.alert) tr.className = 'alert-row';
+
+    function spreadCell(val) {
+      if (val == null) return '<td style="color:var(--text-dim)">—</td>';
+      const color = val >= 0 ? 'var(--green)' : 'var(--text-dim)';
+      return `<td style="color:${color}">${fmtPctShort(val)}</td>`;
+    }
+
     tr.innerHTML = `
       <td>${fmtTime(t.ts)}</td>
       <td>${fmt(mid(t.hl_bid, t.hl_ask))}</td>
       <td>${fmt(mid(t.bn_bid, t.bn_ask))}</td>
       <td>${fmt(mid(t.ig_bid, t.ig_ask))}</td>
-      <td style="color:${Number(t.best_spread)>=0?'var(--green)':'var(--red)'}">${fmtPct(t.best_spread)}</td>
-      <td>${t.best_pair || ''}</td>
+      ${spreadCell(igBn)}
+      ${spreadCell(igHl)}
+      ${spreadCell(bnHl)}
+      <td style="color:${Number(t.best_spread)>=0?'var(--green)':'var(--text-dim)'}">${fmtPctShort(t.best_spread)}</td>
     `;
     body.prepend(tr);
   });
@@ -514,18 +749,22 @@ async function loadKPIs() {
   const h24 = new Date(now - 24*60*60*1000).toISOString();
   const d7  = new Date(now - 7*24*60*60*1000).toISOString();
 
-  // Max/Min 24h
-  const { data: d24 } = await sb
+  // Max 24h
+  const { data: d24max, error: e1 } = await sb
     .from('spread_ticks')
     .select('best_spread, best_pair')
     .gte('ts', h24)
     .order('best_spread', { ascending: false })
     .limit(1);
-  if (d24 && d24.length) {
-    $('kpi-max-24h').textContent = fmtPct(d24[0].best_spread);
-    $('kpi-max-24h-pair').textContent = d24[0].best_pair || '';
+
+  if (e1) { showError('Supabase: ' + (e1.message || e1.code)); return; }
+
+  if (d24max && d24max.length) {
+    $('kpi-max-24h').textContent = fmtPct(d24max[0].best_spread);
+    $('kpi-max-24h-pair').textContent = d24max[0].best_pair || '';
   }
 
+  // Min 24h
   const { data: d24min } = await sb
     .from('spread_ticks')
     .select('best_spread, best_pair')
@@ -538,15 +777,15 @@ async function loadKPIs() {
   }
 
   // Max 7d
-  const { data: d7data } = await sb
+  const { data: d7max } = await sb
     .from('spread_ticks')
     .select('best_spread, best_pair')
     .gte('ts', d7)
     .order('best_spread', { ascending: false })
     .limit(1);
-  if (d7data && d7data.length) {
-    $('kpi-max-7d').textContent = fmtPct(d7data[0].best_spread);
-    $('kpi-max-7d-pair').textContent = d7data[0].best_pair || '';
+  if (d7max && d7max.length) {
+    $('kpi-max-7d').textContent = fmtPct(d7max[0].best_spread);
+    $('kpi-max-7d-pair').textContent = d7max[0].best_pair || '';
   }
 
   // Alert count 24h
@@ -560,7 +799,8 @@ async function loadKPIs() {
 
 // ---- Alert config ----
 async function loadConfig() {
-  const { data } = await sb.from('alert_config').select('*').eq('id', 1).single();
+  const { data, error } = await sb.from('alert_config').select('*').eq('id', 1).single();
+  if (error) { showError('Supabase: ' + (error.message || error.code)); return; }
   if (data) {
     $('cfgThreshold').value = data.threshold_pct;
     $('cfgTopic').value = data.ntfy_topic || '';
@@ -590,8 +830,14 @@ async function saveConfig() {
 $('cfgToggle').addEventListener('click', function() {
   this.classList.toggle('on');
 });
-
 $('saveBtn').addEventListener('click', saveConfig);
+
+// ---- Error display ----
+function showError(msg) {
+  const banner = $('errorBanner');
+  banner.textContent = msg;
+  banner.classList.add('show');
+}
 
 // ---- Realtime subscription ----
 function subscribe() {
@@ -614,12 +860,18 @@ function subscribe() {
 
 // ---- Load initial data ----
 async function init() {
-  // Recent ticks
-  const { data: recent } = await sb
+  const { data: recent, error } = await sb
     .from('spread_ticks')
     .select('*')
     .order('ts', { ascending: false })
     .limit(MAX_RECENT);
+
+  if (error) {
+    showError('Auth failed — check your Supabase anon key and RLS policies. Error: ' + (error.message || error.code));
+    $('statusText').textContent = 'Auth error';
+    return;
+  }
+
   if (recent && recent.length) {
     recent.reverse().forEach(t => recentTicks.push(t));
     latestTick = recentTicks[recentTicks.length - 1];
