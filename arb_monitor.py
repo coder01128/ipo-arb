@@ -7,7 +7,7 @@ Anthropic:
   IG Markets  (IX.D.ANTHGREY.IFD.IP) — REST polling (OAuth, 5s interval)
 
 OpenAI:
-  Hyperliquid (io:OPENAI)     — WebSocket l2Book
+  Hyperliquid (io:OAI)        — WebSocket l2Book
   Binance     (OPENAIUSDT)    — WebSocket bookTicker
   IG Markets  (IX.D.OPENAGREY.IFD.IP) — REST polling (same session, same cycle)
 
@@ -49,7 +49,7 @@ IG_EPIC = "IX.D.ANTHGREY.IFD.IP"
 IG_OAI_EPIC = "IX.D.OPENAGREY.IFD.IP"
 IG_BASE = "https://api.ig.com/gateway/deal"
 
-OAI_HL_COIN = "io:OPENAI"
+OAI_HL_COIN = "io:OAI"
 
 # Parse CLI overrides
 args = sys.argv[1:]
