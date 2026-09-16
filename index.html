@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IPO Arb Monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #06060b;
+    --surface: #0e0e16;
+    --surface-2: #15151f;
+    --border: #1e1e2e;
+    --text: #e2e2ea;
+    --text-dim: #7a7a8e;
+    --green: #22c55e;
+    --green-dim: rgba(34,197,94,0.12);
+    --red: #ef4444;
+    --red-dim: rgba(239,68,68,0.12);
+    --amber: #f59e0b;
+    --blue: #3b82f6;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'DM Sans', system-ui, sans-serif;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  .container {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 24px 20px;
+  }
+
+  /* ---- Header ---- */
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  header h1 {
+    font-family: var(--mono);
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  header h1 span { color: var(--text-dim); font-weight: 400; }
+  .status {
+    font-size: 13px;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--red);
+    display: inline-block;
+  }
+  .status-dot.live { background: var(--green); }
+
+  /* ---- Venue cards ---- */
+  .venues {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .venue-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px;
+  }
+  .venue-card .label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .venue-card .label .stale-tag {
+    font-size: 10px;
+    color: var(--amber);
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  .venue-card .price-row {
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 700;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .venue-card .price-row .slash {
+    color: var(--text-dim);
+    font-weight: 400;
+    font-size: 16px;
+  }
+  .venue-card .mid {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+  .venue-card.stale { opacity: 0.4; }
+
+  /* ---- Best spread banner ---- */
+  .spread-banner {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .spread-banner .spread-value {
+    font-family: var(--mono);
+    font-size: 32px;
+    font-weight: 700;
+  }
+  .spread-banner .spread-value.positive { color: var(--green); }
+  .spread-banner .spread-value.negative { color: var(--red); }
+  .spread-banner .spread-label {
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+  .spread-banner .direction {
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 4px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+  }
+
+  /* ---- KPI grid ---- */
+  .kpis {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .kpi {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 16px;
+  }
+  .kpi .kpi-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+  .kpi .kpi-value {
+    font-family: var(--mono);
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .kpi .kpi-sub {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+
+  /* ---- Spread history (mini table) ---- */
+  .history-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+  .history-section h3 {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: var(--text-dim);
+  }
+  .history-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  .history-table th {
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-dim);
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+  }
+  .history-table td {
+    padding: 5px 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .history-table tr:last-child td { border-bottom: none; }
+  .history-table .alert-row { background: var(--green-dim); }
+
+  /* ---- Alert config panel ---- */
+  .config-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 20px;
+  }
+  .config-panel h3 {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 16px;
+  }
+  .config-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+  }
+  .config-field label {
+    display: block;
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+  .config-field input[type="number"],
+  .config-field input[type="text"] {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 14px;
+    padding: 8px 10px;
+    outline: none;
+  }
+  .config-field input:focus {
+    border-color: var(--blue);
+  }
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-top: 22px;
+  }
+  .toggle {
+    width: 40px; height: 22px;
+    background: var(--border);
+    border-radius: 11px;
+    cursor: pointer;
+    position: relative;
+    transition: background 0.2s;
+    border: none;
+  }
+  .toggle::after {
+    content: '';
+    width: 16px; height: 16px;
+    background: var(--text);
+    border-radius: 50%;
+    position: absolute;
+    top: 3px; left: 3px;
+    transition: transform 0.2s;
+  }
+  .toggle.on { background: var(--green); }
+  .toggle.on::after { transform: translateX(18px); }
+  .toggle-label { font-size: 13px; }
+  .save-btn {
+    margin-top: 16px;
+    background: var(--blue);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 10px 20px;
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .save-btn:hover { opacity: 0.85; }
+  .save-msg {
+    display: inline-block;
+    margin-left: 12px;
+    font-size: 13px;
+    color: var(--green);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .save-msg.show { opacity: 1; }
+
+  /* ---- Responsive ---- */
+  @media (max-width: 700px) {
+    .venues { grid-template-columns: 1fr; }
+    .kpis { grid-template-columns: repeat(2, 1fr); }
+    .venue-card .price-row { font-size: 18px; }
+    .spread-banner .spread-value { font-size: 24px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>IPO Arb <span>— Anthropic pre-IPO spread monitor</span></h1>
+    <div class="status">
+      <span class="status-dot" id="statusDot"></span>
+      <span id="statusText">Connecting...</span>
+    </div>
+  </header>
+
+  <!-- Venue prices -->
+  <div class="venues">
+    <div class="venue-card" id="card-HL">
+      <div class="label">Hyperliquid <span class="stale-tag" id="stale-HL"></span></div>
+      <div class="price-row"><span id="hl-bid">—</span><span class="slash">/</span><span id="hl-ask">—</span></div>
+      <div class="mid">mid <span id="hl-mid">—</span></div>
+    </div>
+    <div class="venue-card" id="card-BN">
+      <div class="label">Binance <span class="stale-tag" id="stale-BN"></span></div>
+      <div class="price-row"><span id="bn-bid">—</span><span class="slash">/</span><span id="bn-ask">—</span></div>
+      <div class="mid">mid <span id="bn-mid">—</span></div>
+    </div>
+    <div class="venue-card" id="card-IG">
+      <div class="label">IG Markets <span class="stale-tag" id="stale-IG"></span></div>
+      <div class="price-row"><span id="ig-bid">—</span><span class="slash">/</span><span id="ig-ask">—</span></div>
+      <div class="mid">mid <span id="ig-mid">—</span></div>
+    </div>
+  </div>
+
+  <!-- Best spread -->
+  <div class="spread-banner">
+    <div>
+      <div class="spread-label">Best spread</div>
+      <div class="spread-value" id="bestSpread">—</div>
+    </div>
+    <div class="direction" id="bestDirection">—</div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpis">
+    <div class="kpi">
+      <div class="kpi-label">Max spread (24h)</div>
+      <div class="kpi-value" id="kpi-max-24h">—</div>
+      <div class="kpi-sub" id="kpi-max-24h-pair"></div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Min spread (24h)</div>
+      <div class="kpi-value" id="kpi-min-24h">—</div>
+      <div class="kpi-sub" id="kpi-min-24h-pair"></div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Max spread (7d)</div>
+      <div class="kpi-value" id="kpi-max-7d">—</div>
+      <div class="kpi-sub" id="kpi-max-7d-pair"></div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Alerts fired (24h)</div>
+      <div class="kpi-value" id="kpi-alerts-24h">—</div>
+    </div>
+  </div>
+
+  <!-- Recent ticks -->
+  <div class="history-section">
+    <h3>Recent ticks</h3>
+    <table class="history-table">
+      <thead>
+        <tr><th>Time</th><th>HL</th><th>BN</th><th>IG</th><th>Spread</th><th>Direction</th></tr>
+      </thead>
+      <tbody id="historyBody"></tbody>
+    </table>
+  </div>
+
+  <!-- Alert config -->
+  <div class="config-panel">
+    <h3>Push notification settings</h3>
+    <div class="config-grid">
+      <div class="config-field">
+        <label>Threshold %</label>
+        <input type="number" step="0.1" min="0" id="cfgThreshold" value="0.5">
+      </div>
+      <div class="config-field">
+        <label>ntfy.sh topic</label>
+        <input type="text" id="cfgTopic" value="ipo-arb-alerts" placeholder="your-topic-name">
+      </div>
+      <div class="config-field">
+        <label>Cooldown (minutes)</label>
+        <input type="number" step="1" min="1" id="cfgCooldown" value="15">
+      </div>
+      <div class="config-field">
+        <div class="toggle-row">
+          <button class="toggle on" id="cfgToggle" type="button"></button>
+          <span class="toggle-label">Notifications enabled</span>
+        </div>
+      </div>
+    </div>
+    <button class="save-btn" id="saveBtn">Save settings</button>
+    <span class="save-msg" id="saveMsg">Saved</span>
+  </div>
+</div>
+
+<!-- Supabase JS v2 CDN -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+// ============================================================
+// CONFIG — replace with your Supabase project details
+// ============================================================
+const SUPABASE_URL  = 'https://plnsptxogciwvhhltshq.supabase.co';
+const SUPABASE_ANON = 'sb_publishable_eY8FHjAbLTtytnFCoE0Cwg_zP6juJSl';
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// ---- State ----
+let latestTick = null;
+const recentTicks = [];
+const MAX_RECENT = 20;
+
+// ---- DOM refs ----
+const $ = id => document.getElementById(id);
+
+// ---- Formatting ----
+function fmt(n) {
+  if (n == null) return '—';
+  return Number(n).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+}
+function fmtPct(n) {
+  if (n == null) return '—';
+  const v = Number(n);
+  return (v >= 0 ? '+' : '') + v.toFixed(3) + '%';
+}
+function fmtTime(iso) {
+  const d = new Date(iso);
+  return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+function mid(bid, ask) {
+  if (!bid || !ask) return null;
+  return ((Number(bid) + Number(ask)) / 2);
+}
+
+// ---- Render tick ----
+function renderTick(t) {
+  $('hl-bid').textContent = fmt(t.hl_bid);
+  $('hl-ask').textContent = fmt(t.hl_ask);
+  $('hl-mid').textContent = fmt(mid(t.hl_bid, t.hl_ask));
+  $('bn-bid').textContent = fmt(t.bn_bid);
+  $('bn-ask').textContent = fmt(t.bn_ask);
+  $('bn-mid').textContent = fmt(mid(t.bn_bid, t.bn_ask));
+  $('ig-bid').textContent = fmt(t.ig_bid);
+  $('ig-ask').textContent = fmt(t.ig_ask);
+  $('ig-mid').textContent = fmt(mid(t.ig_bid, t.ig_ask));
+
+  // Stale indicators
+  ['HL','BN','IG'].forEach(v => {
+    const prefix = v.toLowerCase();
+    const hasBid = t[prefix + '_bid'] != null;
+    $('card-' + v).classList.toggle('stale', !hasBid);
+    $('stale-' + v).textContent = hasBid ? '' : 'no data';
+  });
+
+  // Best spread
+  const sp = Number(t.best_spread);
+  $('bestSpread').textContent = fmtPct(sp);
+  $('bestSpread').className = 'spread-value ' + (sp >= 0 ? 'positive' : 'negative');
+  $('bestDirection').textContent = t.best_pair || '—';
+
+  // Status
+  $('statusDot').classList.add('live');
+  $('statusText').textContent = 'Live — ' + fmtTime(t.ts);
+}
+
+// ---- Render history table ----
+function renderHistory() {
+  const body = $('historyBody');
+  body.innerHTML = '';
+  recentTicks.forEach(t => {
+    const tr = document.createElement('tr');
+    if (t.alert) tr.className = 'alert-row';
+    tr.innerHTML = `
+      <td>${fmtTime(t.ts)}</td>
+      <td>${fmt(mid(t.hl_bid, t.hl_ask))}</td>
+      <td>${fmt(mid(t.bn_bid, t.bn_ask))}</td>
+      <td>${fmt(mid(t.ig_bid, t.ig_ask))}</td>
+      <td style="color:${Number(t.best_spread)>=0?'var(--green)':'var(--red)'}">${fmtPct(t.best_spread)}</td>
+      <td>${t.best_pair || ''}</td>
+    `;
+    body.prepend(tr);
+  });
+}
+
+// ---- KPIs ----
+async function loadKPIs() {
+  const now = new Date();
+  const h24 = new Date(now - 24*60*60*1000).toISOString();
+  const d7  = new Date(now - 7*24*60*60*1000).toISOString();
+
+  // Max/Min 24h
+  const { data: d24 } = await sb
+    .from('spread_ticks')
+    .select('best_spread, best_pair')
+    .gte('ts', h24)
+    .order('best_spread', { ascending: false })
+    .limit(1);
+  if (d24 && d24.length) {
+    $('kpi-max-24h').textContent = fmtPct(d24[0].best_spread);
+    $('kpi-max-24h-pair').textContent = d24[0].best_pair || '';
+  }
+
+  const { data: d24min } = await sb
+    .from('spread_ticks')
+    .select('best_spread, best_pair')
+    .gte('ts', h24)
+    .order('best_spread', { ascending: true })
+    .limit(1);
+  if (d24min && d24min.length) {
+    $('kpi-min-24h').textContent = fmtPct(d24min[0].best_spread);
+    $('kpi-min-24h-pair').textContent = d24min[0].best_pair || '';
+  }
+
+  // Max 7d
+  const { data: d7data } = await sb
+    .from('spread_ticks')
+    .select('best_spread, best_pair')
+    .gte('ts', d7)
+    .order('best_spread', { ascending: false })
+    .limit(1);
+  if (d7data && d7data.length) {
+    $('kpi-max-7d').textContent = fmtPct(d7data[0].best_spread);
+    $('kpi-max-7d-pair').textContent = d7data[0].best_pair || '';
+  }
+
+  // Alert count 24h
+  const { count } = await sb
+    .from('spread_ticks')
+    .select('id', { count: 'exact', head: true })
+    .gte('ts', h24)
+    .eq('alert', true);
+  $('kpi-alerts-24h').textContent = count ?? '0';
+}
+
+// ---- Alert config ----
+async function loadConfig() {
+  const { data } = await sb.from('alert_config').select('*').eq('id', 1).single();
+  if (data) {
+    $('cfgThreshold').value = data.threshold_pct;
+    $('cfgTopic').value = data.ntfy_topic || '';
+    $('cfgCooldown').value = data.cooldown_mins;
+    const toggle = $('cfgToggle');
+    toggle.classList.toggle('on', data.notify_enabled);
+  }
+}
+
+async function saveConfig() {
+  const toggle = $('cfgToggle');
+  const { error } = await sb.from('alert_config').update({
+    threshold_pct: parseFloat($('cfgThreshold').value) || 0.5,
+    ntfy_topic: $('cfgTopic').value.trim() || 'ipo-arb-alerts',
+    cooldown_mins: parseInt($('cfgCooldown').value) || 15,
+    notify_enabled: toggle.classList.contains('on'),
+    updated_at: new Date().toISOString()
+  }).eq('id', 1);
+
+  const msg = $('saveMsg');
+  msg.textContent = error ? 'Error saving' : 'Saved — monitor picks up changes within ~60s';
+  msg.classList.add('show');
+  setTimeout(() => msg.classList.remove('show'), 3000);
+}
+
+// Toggle button
+$('cfgToggle').addEventListener('click', function() {
+  this.classList.toggle('on');
+});
+
+$('saveBtn').addEventListener('click', saveConfig);
+
+// ---- Realtime subscription ----
+function subscribe() {
+  sb.channel('spread_ticks_live')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'spread_ticks' }, (payload) => {
+      const t = payload.new;
+      latestTick = t;
+      recentTicks.push(t);
+      if (recentTicks.length > MAX_RECENT) recentTicks.shift();
+      renderTick(t);
+      renderHistory();
+    })
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        $('statusDot').classList.add('live');
+        $('statusText').textContent = 'Connected — waiting for data';
+      }
+    });
+}
+
+// ---- Load initial data ----
+async function init() {
+  // Recent ticks
+  const { data: recent } = await sb
+    .from('spread_ticks')
+    .select('*')
+    .order('ts', { ascending: false })
+    .limit(MAX_RECENT);
+  if (recent && recent.length) {
+    recent.reverse().forEach(t => recentTicks.push(t));
+    latestTick = recentTicks[recentTicks.length - 1];
+    renderTick(latestTick);
+    renderHistory();
+  }
+
+  await loadKPIs();
+  await loadConfig();
+  subscribe();
+
+  // Refresh KPIs every 60s
+  setInterval(loadKPIs, 60000);
+}
+
+init();
+</script>
+</body>
+</html>
