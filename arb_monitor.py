@@ -1,9 +1,15 @@
 """
-Anthropic Pre-IPO — Three-Leg Cross-Exchange Spread Monitor
-============================================================
-Hyperliquid (io:ANTH)     — WebSocket l2Book
-Binance     (ANTHROPICUSDT) — WebSocket bookTicker
-IG Markets  (.ANTHROPIC)    — REST polling (OAuth, 5s interval)
+Pre-IPO — Six-Leg Cross-Exchange Spread Monitor (Anthropic + OpenAI)
+=====================================================================
+Anthropic:
+  Hyperliquid (io:ANTH)       — WebSocket l2Book
+  Binance     (ANTHROPICUSDT) — WebSocket bookTicker
+  IG Markets  (IX.D.ANTHGREY.IFD.IP) — REST polling (OAuth, 5s interval)
+
+OpenAI:
+  Hyperliquid (io:OPENAI)     — WebSocket l2Book
+  Binance     (OPENAIUSDT)    — WebSocket bookTicker
+  IG Markets  (IX.D.OPENAGREY.IFD.IP) — REST polling (same session, same cycle)
 
 Requirements:
     pip install websockets requests
@@ -40,7 +46,10 @@ IG_USERNAME = "TheGreyHill"
 IG_PASSWORD = "Pr0pp3rJ0b"
 IG_API_KEY = "9608874347aac4b3c8997ec5a60743f2f32d294a"
 IG_EPIC = "IX.D.ANTHGREY.IFD.IP"
+IG_OAI_EPIC = "IX.D.OPENAGREY.IFD.IP"
 IG_BASE = "https://api.ig.com/gateway/deal"
+
+OAI_HL_COIN = "io:OPENAI"
 
 # Parse CLI overrides
 args = sys.argv[1:]
@@ -92,6 +101,12 @@ ig_quote = VenueQuote(venue="IG", stale_limit=IG_STALE_MS)
 
 venues = [hl_quote, bn_quote, ig_quote]
 
+oai_hl_quote = VenueQuote(venue="HL", stale_limit=STALE_MS)
+oai_bn_quote = VenueQuote(venue="BN", stale_limit=STALE_MS)
+oai_ig_quote = VenueQuote(venue="IG", stale_limit=IG_STALE_MS)
+
+oai_venues = [oai_hl_quote, oai_bn_quote, oai_ig_quote]
+
 # CSV logger
 csv_writer = None
 csv_file = None
@@ -102,7 +117,9 @@ if LOG_FILE:
         csv_writer.writerow([
             "timestamp",
             "hl_bid", "hl_ask", "bn_bid", "bn_ask", "ig_bid", "ig_ask",
-            "best_spread_pct", "best_pair", "alert"
+            "best_spread_pct", "best_pair", "alert",
+            "oai_hl_bid", "oai_hl_ask", "oai_bn_bid", "oai_bn_ask",
+            "oai_ig_bid", "oai_ig_ask",
         ])
 
 # ---------------------------------------------------------------------------
@@ -145,10 +162,19 @@ def compute_and_display():
         else:
             parts.append(f"{v.venue} ---")
 
+    oai_parts = []
+    for v in oai_venues:
+        if v.live:
+            oai_parts.append(f"{v.venue} {v.best_bid:.1f}/{v.best_ask:.1f}")
+        elif v.best_bid > 0:
+            oai_parts.append(f"{v.venue} (stale)")
+        else:
+            oai_parts.append(f"{v.venue} ---")
+
     sys.stdout.write(
-        f"\r{now}  {'  '.join(parts)}  "
+        f"\r{now}  ANTH: {'  '.join(parts)}  "
         f"Best: {best_spread_pct:+.3f}% ({best_label})"
-        f"{alert_marker}          "
+        f"{alert_marker}  |  OAI: {'  '.join(oai_parts)}          "
     )
     sys.stdout.flush()
 
@@ -173,7 +199,10 @@ def compute_and_display():
             bn_quote.best_bid, bn_quote.best_ask,
             ig_quote.best_bid, ig_quote.best_ask,
             round(best_spread_pct, 4), best_label,
-            "YES" if alert else ""
+            "YES" if alert else "",
+            oai_hl_quote.best_bid, oai_hl_quote.best_ask,
+            oai_bn_quote.best_bid, oai_bn_quote.best_ask,
+            oai_ig_quote.best_bid, oai_ig_quote.best_ask,
         ])
         csv_file.flush()
 
@@ -251,7 +280,68 @@ async def hyperliquid_feed():
 
 
 # ---------------------------------------------------------------------------
-# Binance WebSocket
+# Hyperliquid WebSocket — OpenAI
+# ---------------------------------------------------------------------------
+async def hyperliquid_oai_feed():
+    import websockets
+    import requests as _req
+
+    _hdrs = {"Content-Type": "application/json"}
+    _base = "https://api.hyperliquid.xyz/info"
+    try:
+        _dex = OAI_HL_COIN.split(":")[0]
+        _meta = _req.post(_base, json={"type": "meta", "dex": _dex},
+                          headers=_hdrs, timeout=10).json()
+        _coins = [c["name"] for c in _meta.get("universe", [])]
+        if OAI_HL_COIN in _coins:
+            print(f"[OAI-HL] Confirmed '{OAI_HL_COIN}' in deployer '{_dex}'")
+        else:
+            print(f"[OAI-HL] WARNING: '{OAI_HL_COIN}' not found. Available: {_coins[:10]}")
+            return
+    except Exception as e:
+        print(f"[OAI-HL] Pre-flight failed ({e}), proceeding...")
+
+    async with websockets.connect(HL_WS_URL) as ws:
+        await ws.send(json.dumps({
+            "method": "subscribe",
+            "subscription": {"type": "l2Book", "coin": OAI_HL_COIN}
+        }))
+        print(f"[OAI-HL] Subscribed to {OAI_HL_COIN} l2Book")
+
+        async def heartbeat():
+            while True:
+                await asyncio.sleep(HEARTBEAT_INTERVAL)
+                try:
+                    await ws.send(json.dumps({"method": "ping"}))
+                except Exception:
+                    return
+
+        hb_task = asyncio.create_task(heartbeat())
+        try:
+            async for raw in ws:
+                msg = json.loads(raw)
+                ch = msg.get("channel", "")
+                if ch in ("subscriptionResponse", "pong"):
+                    continue
+                if ch != "l2Book":
+                    continue
+                levels = msg.get("data", {}).get("levels", [])
+                if len(levels) >= 2:
+                    bids, asks = levels[0], levels[1]
+                    if bids:
+                        oai_hl_quote.best_bid = float(bids[0]["px"])
+                        oai_hl_quote.bid_qty = float(bids[0]["sz"])
+                    if asks:
+                        oai_hl_quote.best_ask = float(asks[0]["px"])
+                        oai_hl_quote.ask_qty = float(asks[0]["sz"])
+                    oai_hl_quote.updated_ms = int(time.time() * 1000)
+                    compute_and_display()
+        finally:
+            hb_task.cancel()
+
+
+# ---------------------------------------------------------------------------
+# Binance WebSocket — Anthropic
 # ---------------------------------------------------------------------------
 BN_WS_URL = "wss://fstream.binance.com/public/ws/anthropicusdt@bookTicker"
 
@@ -267,6 +357,26 @@ async def binance_feed():
                 bn_quote.best_ask = float(msg["a"])
                 bn_quote.ask_qty = float(msg["A"])
                 bn_quote.updated_ms = int(time.time() * 1000)
+                compute_and_display()
+
+
+# ---------------------------------------------------------------------------
+# Binance WebSocket — OpenAI
+# ---------------------------------------------------------------------------
+BN_OAI_WS_URL = "wss://fstream.binance.com/public/ws/openaiusdt@bookTicker"
+
+async def binance_oai_feed():
+    import websockets
+    async with websockets.connect(BN_OAI_WS_URL) as ws:
+        print(f"[OAI-BN] Connected to OPENAIUSDT bookTicker")
+        async for raw in ws:
+            msg = json.loads(raw)
+            if "b" in msg and "a" in msg:
+                oai_bn_quote.best_bid = float(msg["b"])
+                oai_bn_quote.bid_qty = float(msg["B"])
+                oai_bn_quote.best_ask = float(msg["a"])
+                oai_bn_quote.ask_qty = float(msg["A"])
+                oai_bn_quote.updated_ms = int(time.time() * 1000)
                 compute_and_display()
 
 
@@ -351,8 +461,34 @@ def ig_get_price():
     return False
 
 
+def ig_get_oai_price():
+    """Fetch current bid/offer for the OpenAI epic."""
+    hdrs = {
+        "Content-Type": "application/json; charset=UTF-8",
+        "Accept": "application/json; charset=UTF-8",
+        "X-IG-API-KEY": IG_API_KEY,
+        "Authorization": f"Bearer {ig_oauth['token']}",
+        "IG-ACCOUNT-ID": ig_oauth["account_id"],
+    }
+    resp = http_req.get(f"{IG_BASE}/markets/{IG_OAI_EPIC}", headers=hdrs, timeout=10)
+    if resp.status_code == 200:
+        snap = resp.json().get("snapshot", {})
+        bid = snap.get("bid")
+        offer = snap.get("offer")
+        if bid is not None and offer is not None:
+            oai_ig_quote.best_bid = float(bid)
+            oai_ig_quote.best_ask = float(offer)
+            oai_ig_quote.updated_ms = int(time.time() * 1000)
+            return True
+    elif resp.status_code == 401:
+        pass  # auth refresh handled by the Anthropic call in the same cycle
+    else:
+        print(f"\n[OAI-IG] Price fetch error: {resp.status_code}")
+    return False
+
+
 async def ig_feed():
-    """Poll IG REST API for prices."""
+    """Poll IG REST API for prices (Anthropic + OpenAI)."""
     if not ig_login():
         print("[IG] Skipping IG feed — login failed")
         return
@@ -363,8 +499,9 @@ async def ig_feed():
             ig_refresh()
 
         try:
-            if ig_get_price():
-                compute_and_display()
+            ig_get_price()
+            ig_get_oai_price()
+            compute_and_display()
         except Exception as e:
             print(f"\n[IG] Poll error: {e}")
 
@@ -388,10 +525,15 @@ async def resilient(coro_func, label):
 # ---------------------------------------------------------------------------
 async def main():
     print(
-        f"Anthropic Pre-IPO Arb Monitor (3-leg)\n"
-        f"  Hyperliquid : {HL_COIN}-USDC  (WebSocket)\n"
-        f"  Binance     : ANTHROPICUSDT   (WebSocket)\n"
-        f"  IG Markets  : {IG_EPIC}  (REST poll {IG_POLL_INTERVAL}s)\n"
+        f"Pre-IPO Arb Monitor (6-leg: Anthropic + OpenAI)\n"
+        f"  Anthropic:\n"
+        f"    Hyperliquid : {HL_COIN}-USDC  (WebSocket)\n"
+        f"    Binance     : ANTHROPICUSDT   (WebSocket)\n"
+        f"    IG Markets  : {IG_EPIC}  (REST poll {IG_POLL_INTERVAL}s)\n"
+        f"  OpenAI:\n"
+        f"    Hyperliquid : {OAI_HL_COIN}-USDC  (WebSocket)\n"
+        f"    Binance     : OPENAIUSDT   (WebSocket)\n"
+        f"    IG Markets  : {IG_OAI_EPIC}  (REST poll {IG_POLL_INTERVAL}s)\n"
         f"  Threshold   : {THRESHOLD_PCT}%\n"
         f"  Log file    : {LOG_FILE or '(none)'}\n"
         f"{'-'*60}\n"
@@ -402,6 +544,8 @@ async def main():
         resilient(hyperliquid_feed, "HL"),
         resilient(binance_feed, "BN"),
         resilient(ig_feed, "IG"),
+        resilient(hyperliquid_oai_feed, "OAI-HL"),
+        resilient(binance_oai_feed, "OAI-BN"),
     )
 
 

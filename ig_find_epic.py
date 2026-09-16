@@ -31,7 +31,7 @@ search_hdrs = {
     "IG-ACCOUNT-ID": account_id,
 }
 
-for term in ["Anthropic", "IPO"]:
+for term in ["Openai", "IPO"]:
     sr = requests.get(f"{BASE}/markets", params={"searchTerm": term}, headers=search_hdrs)
     print(f"Search '{term}': {sr.status_code}")
     if sr.status_code == 200:
