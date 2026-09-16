@@ -148,27 +148,35 @@
   }
   .venue-card.stale { opacity: 0.4; }
 
-  /* Anthropic cards — light yellow tint */
-  [id^="card-anth-"] {
-    background: #422006;
-    border-color: #713f12;
+  /* Anthropic cards — light yellow */
+  [id^="card-anth-"], [id^="pair-anth-"] {
+    background: #fefce8;
+    border-color: #facc15;
+    color: #1c1917;
   }
-  /* OpenAI cards — light orange tint */
-  [id^="card-oai-"] {
-    background: #431407;
-    border-color: #7c2d12;
-  }
+  [id^="card-anth-"] .label,
+  [id^="card-anth-"] .mid,
+  [id^="pair-anth-"] .pair-label,
+  [id^="pair-anth-"] .dir-label { color: #57534e; }
+  [id^="card-anth-"] .price-row,
+  [id^="pair-anth-"] .dir-value { color: #1c1917; }
+  [id^="card-anth-"] .slash { color: #a8a29e; }
+  [id^="pair-anth-"] .spread-direction + .spread-direction { border-color: #e5e7eb; }
 
-  /* Anthropic spread boxes — matching yellow */
-  [id^="pair-anth-"] {
-    background: #422006;
-    border-color: #713f12;
+  /* OpenAI cards — light orange */
+  [id^="card-oai-"], [id^="pair-oai-"] {
+    background: #ffedd5;
+    border-color: #f97316;
+    color: #1c1917;
   }
-  /* OpenAI spread boxes — matching orange */
-  [id^="pair-oai-"] {
-    background: #431407;
-    border-color: #7c2d12;
-  }
+  [id^="card-oai-"] .label,
+  [id^="card-oai-"] .mid,
+  [id^="pair-oai-"] .pair-label,
+  [id^="pair-oai-"] .dir-label { color: #57534e; }
+  [id^="card-oai-"] .price-row,
+  [id^="pair-oai-"] .dir-value { color: #1c1917; }
+  [id^="card-oai-"] .slash { color: #a8a29e; }
+  [id^="pair-oai-"] .spread-direction + .spread-direction { border-color: #e5e7eb; }
 
   /* ---- Spread pair boxes ---- */
   .spread-pairs {
@@ -484,7 +492,12 @@
     <span class="asset-tag">OAI</span> OpenAI
   </div>
 
-  <div class="venues venues-2col">
+  <div class="venues">
+    <div class="venue-card" id="card-oai-HL">
+      <div class="label">Hyperliquid <span class="stale-tag" id="stale-oai-HL"></span></div>
+      <div class="price-row"><span id="oai-hl-bid">—</span><span class="slash">/</span><span id="oai-hl-ask">—</span></div>
+      <div class="mid">mid <span id="oai-hl-mid">—</span></div>
+    </div>
     <div class="venue-card" id="card-oai-BN">
       <div class="label">Binance <span class="stale-tag" id="stale-oai-BN"></span></div>
       <div class="price-row"><span id="oai-bn-bid">—</span><span class="slash">/</span><span id="oai-bn-ask">—</span></div>
@@ -497,8 +510,8 @@
     </div>
   </div>
 
-  <!-- OpenAI spread pair -->
-  <div class="spread-pairs spread-pairs-1col">
+  <!-- OpenAI spread pairs -->
+  <div class="spread-pairs">
     <div class="spread-box" id="pair-oai-ig-bn">
       <div class="pair-label">IG ↔ Binance</div>
       <div class="spread-direction" id="dir-oai-ig-bn">
@@ -507,6 +520,28 @@
       </div>
       <div class="spread-direction" id="dir-oai-bn-ig">
         <span class="dir-label">Buy BN → Sell IG</span>
+        <span class="dir-value">—</span>
+      </div>
+    </div>
+    <div class="spread-box" id="pair-oai-ig-hl">
+      <div class="pair-label">IG ↔ Hyperliquid</div>
+      <div class="spread-direction" id="dir-oai-ig-hl">
+        <span class="dir-label">Buy IG → Sell HL</span>
+        <span class="dir-value">—</span>
+      </div>
+      <div class="spread-direction" id="dir-oai-hl-ig">
+        <span class="dir-label">Buy HL → Sell IG</span>
+        <span class="dir-value">—</span>
+      </div>
+    </div>
+    <div class="spread-box" id="pair-oai-bn-hl">
+      <div class="pair-label">Binance ↔ Hyperliquid</div>
+      <div class="spread-direction" id="dir-oai-bn-hl">
+        <span class="dir-label">Buy BN → Sell HL</span>
+        <span class="dir-value">—</span>
+      </div>
+      <div class="spread-direction" id="dir-oai-hl-bn">
+        <span class="dir-label">Buy HL → Sell BN</span>
         <span class="dir-value">—</span>
       </div>
     </div>
@@ -649,11 +684,15 @@ function anthSpreads(t) {
   };
 }
 
-// Compute OpenAI spreads from a tick (IG ↔ BN only)
+// Compute OpenAI spreads from a tick (all 3 venue pairs)
 function oaiSpreads(t) {
   return {
-    ig_bn: calcSpread(t.oai_ig_ask, t.oai_bn_bid),  // buy IG, sell BN
-    bn_ig: calcSpread(t.oai_bn_ask, t.oai_ig_bid),  // buy BN, sell IG
+    ig_bn: calcSpread(t.oai_ig_ask, t.oai_bn_bid),
+    bn_ig: calcSpread(t.oai_bn_ask, t.oai_ig_bid),
+    ig_hl: calcSpread(t.oai_ig_ask, t.oai_hl_bid),
+    hl_ig: calcSpread(t.oai_hl_ask, t.oai_ig_bid),
+    bn_hl: calcSpread(t.oai_bn_ask, t.oai_hl_bid),
+    hl_bn: calcSpread(t.oai_hl_ask, t.oai_bn_bid),
   };
 }
 
@@ -708,6 +747,9 @@ function renderTick(t) {
   renderSpreadDir('dir-anth-bn-hl', 'dir-anth-hl-bn', as.bn_hl, as.hl_bn);
 
   // OpenAI venue prices
+  $('oai-hl-bid').textContent = fmt(t.oai_hl_bid);
+  $('oai-hl-ask').textContent = fmt(t.oai_hl_ask);
+  $('oai-hl-mid').textContent = fmt(mid(t.oai_hl_bid, t.oai_hl_ask));
   $('oai-bn-bid').textContent = fmt(t.oai_bn_bid);
   $('oai-bn-ask').textContent = fmt(t.oai_bn_ask);
   $('oai-bn-mid').textContent = fmt(mid(t.oai_bn_bid, t.oai_bn_ask));
@@ -716,15 +758,17 @@ function renderTick(t) {
   $('oai-ig-mid').textContent = fmt(mid(t.oai_ig_bid, t.oai_ig_ask));
 
   // OpenAI stale indicators
-  [['BN','oai_bn'], ['IG','oai_ig']].forEach(([tag, prefix]) => {
+  [['HL','oai_hl'], ['BN','oai_bn'], ['IG','oai_ig']].forEach(([tag, prefix]) => {
     const hasBid = t[prefix + '_bid'] != null;
     $('card-oai-' + tag).classList.toggle('stale', !hasBid);
     $('stale-oai-' + tag).textContent = hasBid ? '' : 'no data';
   });
 
-  // OpenAI per-pair spread
+  // OpenAI per-pair spreads
   const os = oaiSpreads(t);
   renderSpreadDir('dir-oai-ig-bn', 'dir-oai-bn-ig', os.ig_bn, os.bn_ig);
+  renderSpreadDir('dir-oai-ig-hl', 'dir-oai-hl-ig', os.ig_hl, os.hl_ig);
+  renderSpreadDir('dir-oai-bn-hl', 'dir-oai-hl-bn', os.bn_hl, os.hl_bn);
 
   // Status
   $('statusDot').classList.add('live');
