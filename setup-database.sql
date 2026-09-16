@@ -20,6 +20,12 @@ create table if not exists spread_ticks (
   bn_ask       numeric,
   ig_bid       numeric,
   ig_ask       numeric,
+  oai_hl_bid   numeric,
+  oai_hl_ask   numeric,
+  oai_bn_bid   numeric,
+  oai_bn_ask   numeric,
+  oai_ig_bid   numeric,
+  oai_ig_ask   numeric,
   best_spread  numeric,     -- best spread % across all pairs
   best_pair    text,        -- e.g. "BUY BN / SELL IG"
   alert        boolean      default false

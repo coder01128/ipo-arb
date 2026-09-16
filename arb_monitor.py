@@ -12,7 +12,7 @@ OpenAI:
   IG Markets  (IX.D.OPENAGREY.IFD.IP) — REST polling (same session, same cycle)
 
 Requirements:
-    pip install websockets requests
+    pip install websockets requests supabase
 
 Usage:
     python arb_monitor.py --hl-coin io:ANTH --log spread_log.csv
@@ -121,6 +121,33 @@ if LOG_FILE:
             "oai_hl_bid", "oai_hl_ask", "oai_bn_bid", "oai_bn_ask",
             "oai_ig_bid", "oai_ig_ask",
         ])
+
+# Supabase client
+try:
+    from supabase import create_client
+except ImportError:
+    create_client = None
+
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
+SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
+sb = None
+if create_client and SUPABASE_URL and SUPABASE_KEY:
+    sb = create_client(SUPABASE_URL, SUPABASE_KEY)
+    print("[SB] Connected to Supabase")
+elif not create_client:
+    print("[SB] supabase-py not installed — Supabase writes disabled")
+else:
+    print("[SB] SUPABASE_URL / SUPABASE_SERVICE_KEY not set — Supabase writes disabled")
+
+# Alert config (refreshed from Supabase every ~60 ticks)
+alert_cfg = {
+    "threshold_pct": THRESHOLD_PCT,
+    "notify_enabled": True,
+    "ntfy_topic": "ipo-arb-alerts",
+    "cooldown_mins": 15,
+}
+last_alert_sent = 0
+sb_tick_count = 0
 
 # ---------------------------------------------------------------------------
 # Spread computation — all pairs
@@ -521,6 +548,111 @@ async def resilient(coro_func, label):
 
 
 # ---------------------------------------------------------------------------
+# Supabase writer + ntfy alerts
+# ---------------------------------------------------------------------------
+def refresh_alert_config():
+    """Read alert_config row from Supabase."""
+    global alert_cfg
+    if not sb:
+        return
+    try:
+        resp = sb.table("alert_config").select("*").eq("id", 1).execute()
+        if resp.data:
+            row = resp.data[0]
+            alert_cfg["threshold_pct"] = float(row.get("threshold_pct", THRESHOLD_PCT))
+            alert_cfg["notify_enabled"] = bool(row.get("notify_enabled", True))
+            alert_cfg["ntfy_topic"] = row.get("ntfy_topic", "ipo-arb-alerts")
+            alert_cfg["cooldown_mins"] = int(row.get("cooldown_mins", 15))
+            print(f"\n[SB] Alert config refreshed: threshold={alert_cfg['threshold_pct']}%")
+    except Exception as e:
+        print(f"\n[SB] Failed to read alert_config: {e}")
+
+
+def send_ntfy(spread_pct, pair_label):
+    """Push alert via ntfy.sh if cooldown has elapsed."""
+    global last_alert_sent
+    if not alert_cfg["notify_enabled"]:
+        return
+    cooldown_s = alert_cfg["cooldown_mins"] * 60
+    if time.time() - last_alert_sent < cooldown_s:
+        return
+    topic = alert_cfg["ntfy_topic"]
+    try:
+        http_req.post(
+            f"https://ntfy.sh/{topic}",
+            data=f"Arb Alert: {spread_pct:+.3f}% — {pair_label}",
+            headers={"Title": "IPO Arb Alert", "Priority": "high", "Tags": "chart_with_upwards_trend"},
+            timeout=5,
+        )
+        last_alert_sent = time.time()
+        print(f"\n[NTFY] Sent alert to {topic}")
+    except Exception as e:
+        print(f"\n[NTFY] Failed: {e}")
+
+
+async def supabase_writer():
+    """Insert one spread_ticks row every 5s, refresh alert_config every ~60 ticks."""
+    global sb_tick_count
+    if not sb:
+        return
+
+    refresh_alert_config()
+
+    while True:
+        await asyncio.sleep(5)
+        sb_tick_count += 1
+
+        if sb_tick_count % 60 == 0:
+            refresh_alert_config()
+
+        # Compute Anthropic best spread for the row
+        live = [v for v in venues if v.live]
+        best_spread_pct = None
+        best_label = None
+        if len(live) >= 2:
+            _best = -999.0
+            for a in live:
+                for b in live:
+                    if a is b:
+                        continue
+                    pct = ((b.best_bid - a.best_ask) / a.best_ask) * 100
+                    lbl = f"Buy {a.venue} → Sell {b.venue}"
+                    if pct > _best:
+                        _best = pct
+                        best_label = lbl
+            best_spread_pct = round(_best, 4)
+
+        is_alert = (best_spread_pct is not None
+                    and best_spread_pct >= alert_cfg["threshold_pct"])
+
+        row = {
+            "hl_bid": hl_quote.best_bid or None,
+            "hl_ask": hl_quote.best_ask or None,
+            "bn_bid": bn_quote.best_bid or None,
+            "bn_ask": bn_quote.best_ask or None,
+            "ig_bid": ig_quote.best_bid or None,
+            "ig_ask": ig_quote.best_ask or None,
+            "oai_hl_bid": oai_hl_quote.best_bid or None,
+            "oai_hl_ask": oai_hl_quote.best_ask or None,
+            "oai_bn_bid": oai_bn_quote.best_bid or None,
+            "oai_bn_ask": oai_bn_quote.best_ask or None,
+            "oai_ig_bid": oai_ig_quote.best_bid or None,
+            "oai_ig_ask": oai_ig_quote.best_ask or None,
+            "best_spread": best_spread_pct,
+            "best_pair": best_label,
+            "alert": is_alert,
+        }
+
+        try:
+            sb.table("spread_ticks").insert(row).execute()
+        except Exception as e:
+            print(f"\n[SB] Insert failed: {e}")
+
+        if is_alert:
+            send_ntfy(best_spread_pct, best_label)
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 async def main():
@@ -535,6 +667,7 @@ async def main():
         f"    Binance     : OPENAIUSDT   (WebSocket)\n"
         f"    IG Markets  : {IG_OAI_EPIC}  (REST poll {IG_POLL_INTERVAL}s)\n"
         f"  Threshold   : {THRESHOLD_PCT}%\n"
+        f"  Supabase    : {'enabled' if sb else 'disabled'}\n"
         f"  Log file    : {LOG_FILE or '(none)'}\n"
         f"{'-'*60}\n"
         f"Connecting...\n"
@@ -546,6 +679,7 @@ async def main():
         resilient(ig_feed, "IG"),
         resilient(hyperliquid_oai_feed, "OAI-HL"),
         resilient(binance_oai_feed, "OAI-BN"),
+        supabase_writer(),
     )
 
 
